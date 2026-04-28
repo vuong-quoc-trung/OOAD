@@ -1,0 +1,121 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    min-height: 100vh;
+    font-family: Arial, sans-serif;
+    color: #172033;
+    background: #eef2f7;
+}
+
+button,
+input,
+select {
+    font: inherit;
+}
+
+.page {
+    width: min(960px, calc(100% - 32px));
+    margin: 0 auto;
+    padding: 32px 0;
+}
+
+.panel,
+.appointment-card {
+    background: #ffffff;
+    border: 1px solid #d8dee9;
+    border-radius: 8px;
+    box-shadow: 0 10px 24px rgba(23, 32, 51, 0.08);
+}
+
+.panel {
+    padding: 24px;
+    margin-bottom: 18px;
+}
+
+.topbar,
+.list-head,
+.appointment-card {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+}
+
+.topbar {
+    margin-bottom: 18px;
+}
+
+.form {
+    display: grid;
+    gap: 14px;
+}
+
+.grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+label {
+    display: grid;
+    gap: 6px;
+    font-weight: 700;
+}
+
+input,
+select {
+    width: 100%;
+    border: 1px solid #c7d0df;
+    border-radius: 6px;
+    padding: 10px 12px;
+    background: #ffffff;
+}
+
+button {
+    border: 0;
+    border-radius: 6px;
+    padding: 10px 14px;
+    color: #ffffff;
+    background: #2563eb;
+    cursor: pointer;
+}
+
+button.secondary {
+    color: #172033;
+    background: #e5eaf2;
+}
+
+button.danger {
+    background: #dc2626;
+    min-width: 92px;
+}
+
+.appointment-card {
+    padding: 16px;
+    margin-top: 12px;
+}
+
+.appointment-card p {
+    margin: 6px 0 0;
+    color: #5f6b7a;
+}
+
+.empty {
+    color: #5f6b7a;
+}
+
+.hidden {
+    display: none;
+}
+
+@media (max-width: 720px) {
+    .grid,
+    .topbar,
+    .list-head,
+    .appointment-card {
+        grid-template-columns: 1fr;
+        flex-direction: column;
+        align-items: stretch;
+    }
+}

@@ -1,11 +1,10 @@
-com\example\calendar\entity\Reminder.class
-com\example\calendar\entity\GroupMeeting.class
-com\example\calendar\config\DataSeeder.class
 com\example\calendar\repository\AppointmentRepository.class
 com\example\calendar\entity\Appointment.class
-com\example\calendar\service\CalendarService.class
-com\example\calendar\repository\UserRepository.class
 com\example\calendar\entity\User.class
+com\example\calendar\exception\ApiNotFoundException.class
 com\example\calendar\CalendarApplication.class
-com\example\calendar\repository\GroupMeetingRepository.class
-com\example\calendar\controller\CalendarController.class
+com\example\calendar\entity\AppointmentType.class
+com\example\calendar\exception\ApiValidationException.class
+com\example\calendar\config\DataSeeder.class
+com\example\calendar\repository\UserRepository.class
+com\example\calendar\dto\ApiErrorResponse.class
