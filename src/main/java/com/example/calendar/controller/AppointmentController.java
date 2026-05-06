@@ -3,6 +3,7 @@ package com.example.calendar.controller;
 import com.example.calendar.dto.AppointmentCreateRequest;
 import com.example.calendar.dto.AppointmentMutationResponse;
 import com.example.calendar.dto.AppointmentResponse;
+import com.example.calendar.dto.ConflictResolutionRequest;
 import com.example.calendar.dto.UserIdRequest;
 import com.example.calendar.service.AppointmentService;
 import org.springframework.http.HttpStatus;
@@ -37,7 +38,7 @@ public class AppointmentController {
         @RequestBody AppointmentCreateRequest request
     ) {
         AppointmentMutationResponse response = appointmentService.createAppointment(request);
-        HttpStatus status = "AUTO_MERGE".equals(response.code()) ? HttpStatus.OK : HttpStatus.CREATED;
+        HttpStatus status = getStatusByCode(response.code());
         return ResponseEntity.status(status).body(response);
     }
 
@@ -48,6 +49,13 @@ public class AppointmentController {
         @PathVariable Long appointmentId
     ) {
         return appointmentService.joinAppointment(resolveUserId(userId, request), appointmentId);
+    }
+
+    @PostMapping("/conflict/resolve")
+    public AppointmentMutationResponse resolveConflict(
+        @RequestBody ConflictResolutionRequest request
+    ) {
+        return appointmentService.resolveConflict(request);
     }
 
     @DeleteMapping("/{appointmentId}")
@@ -64,5 +72,22 @@ public class AppointmentController {
             return queryUserId;
         }
         return request == null ? null : request.userId();
+    }
+
+    /**
+     * Xác định HTTP status code dựa trên mã phản hồi
+     */
+    private HttpStatus getStatusByCode(String code) {
+        return switch (code) {
+            case "AUTO_MERGE" -> HttpStatus.OK;
+            case "CREATED" -> HttpStatus.CREATED;
+            case "JOINED" -> HttpStatus.OK;
+            case "CONFLICT_DETECTED" -> HttpStatus.CONFLICT;
+            case "CONFLICT_RESOLVED" -> HttpStatus.OK;
+            case "CONFLICT_CANCELLED" -> HttpStatus.OK;
+            case "DELETED", "LEFT_GROUP" -> HttpStatus.NO_CONTENT;
+            case "GROUP_TIME_CONFLICT" -> HttpStatus.CONFLICT;
+            default -> HttpStatus.OK;
+        };
     }
 }

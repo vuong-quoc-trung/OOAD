@@ -13,7 +13,9 @@ D:\Projects\Projects\OOAD\OOAD\src\main\java\com\example\calendar\repository\Gro
 D:\Projects\Projects\OOAD\OOAD\src\main\java\com\example\calendar\config\DataSeeder.java
 D:\Projects\Projects\OOAD\OOAD\src\main\java\com\example\calendar\repository\UserRepository.java
 D:\Projects\Projects\OOAD\OOAD\src\main\java\com\example\calendar\dto\AppointmentMutationResponse.java
+D:\Projects\Projects\OOAD\OOAD\src\main\java\com\example\calendar\dto\ConflictResolutionRequest.java
 D:\Projects\Projects\OOAD\OOAD\src\main\java\com\example\calendar\entity\AppointmentType.java
+D:\Projects\Projects\OOAD\OOAD\src\main\java\com\example\calendar\dto\ConflictConflictInfo.java
 D:\Projects\Projects\OOAD\OOAD\src\main\java\com\example\calendar\service\AppointmentService.java
 D:\Projects\Projects\OOAD\OOAD\src\main\java\com\example\calendar\exception\ApiConflictException.java
 D:\Projects\Projects\OOAD\OOAD\src\main\java\com\example\calendar\entity\GroupMember.java

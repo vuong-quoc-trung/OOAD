@@ -1,8 +1,8 @@
 package com.example.calendar.dto;
 
 public record AppointmentMemberResponse(
-    Long id,
+    Long userId,
     String username,
-    boolean host
+    boolean isHost
 ) {
 }

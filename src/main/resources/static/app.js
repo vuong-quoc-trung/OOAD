@@ -66,7 +66,21 @@ async function loadAppointments() {
         return;
     }
 
-    renderAppointments(data);
+    // Normalize data về field names consistent
+    const normalized = normalizeAppointmentData(data);
+    renderAppointments(normalized);
+}
+
+// Helper để lấy tên field từ response
+function normalizeAppointmentData(appointments) {
+    return appointments.map(apt => ({
+        ...apt,
+        members: apt.members.map(m => ({
+            id: m.userId !== undefined ? m.userId : m.id,
+            username: m.username,
+            host: m.isHost !== undefined ? m.isHost : m.host
+        }))
+    }));
 }
 
 async function createAppointment(event) {
@@ -92,10 +106,16 @@ async function createAppointment(event) {
         return;
     }
 
+    // Xử lý xung đột lịch với 2 lựa chọn
+    if (response.status === 409 && data.code === "CONFLICT_DETECTED") {
+        await handleConflict(data, payload);
+        return;
+    }
+
     if (response.status === 409) {
         await Swal.fire({
             icon: "warning",
-            title: "Bạn đã có lịch trong giờ này!"
+            title: data.message || "Lỗi xung đột lịch"
         });
         return;
     }
@@ -134,6 +154,77 @@ function getJoinPromptTitle(code) {
     return "Tìm thấy nhóm họp trùng khớp. Tham gia luôn?";
 }
 
+/**
+ * Xử lý xung đột lịch với 2 lựa chọn: Xóa lịch cũ hoặc Giữ lạiconflict
+ */
+async function handleConflict(data, payload) {
+    const conflictInfo = data.conflict;
+    const conflictMessage = `
+        <div style="text-align: left;">
+            <p><strong>Lịch bị xung đột:</strong></p>
+            <p><strong>Tiêu đề:</strong> ${escapeHtml(conflictInfo.conflictingTitle)}</p>
+            <p><strong>Thời gian:</strong> ${conflictInfo.conflictingStartTime} - ${conflictInfo.conflictingEndTime}</p>
+        </div>
+    `;
+
+    const result = await Swal.fire({
+        icon: "warning",
+        title: "Phát hiện xung đột lịch!",
+        html: conflictMessage,
+        showDenyButton: true,
+        confirmButtonText: "Thay thế lịch cũ",
+        denyButtonText: "Xóa lịch mới",
+        allowOutsideClick: false,
+        allowEscapeKey: false
+    });
+
+    if (result.isConfirmed) {
+        // Người dùng chọn xóa lịch cũ và tạo lịch mới
+        await resolveConflict(conflictInfo.conflictingAppointmentId, true);
+    } else if (result.isDenied) {
+        // Người dùng chọn giữ lịch cũ
+        await resolveConflict(conflictInfo.conflictingAppointmentId, false);
+    }
+    // Nếu cancel thì không làm gì, form vẫn còn
+}
+
+/**
+ * Gọi endpoint resolve conflict
+ */
+async function resolveConflict(conflictingAppointmentId, replaceExisting, newAppointmentId = null) {
+    const response = await fetch("/api/appointments/conflict/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            userId: currentUser.id,
+            conflictingAppointmentId: conflictingAppointmentId,
+            newAppointmentId: newAppointmentId,
+            replaceExisting: replaceExisting
+        })
+    });
+    const data = await readJson(response);
+
+    if (!response.ok) {
+        toast.fire({ icon: "error", title: data.message || "Không xử lý được xung đột" });
+        return;
+    }
+
+    if (data.code === "CONFLICT_RESOLVED") {
+        appointmentForm.reset();
+        setDefaultDateTime();
+        if (newAppointmentId) {
+            toast.fire({ icon: "success", title: "Đã xóa lịch cũ & tham gia nhóm mới!" });
+        } else {
+            toast.fire({ icon: "success", title: "Đã tạo lịch mới! Xóa lịch cũ thành công." });
+        }
+        await loadAppointments();
+    } else if (data.code === "CONFLICT_CANCELLED") {
+        toast.fire({ icon: "info", title: "Đã giữ lại lịch cũ. Không thay đổi gì." });
+        appointmentForm.reset();
+        setDefaultDateTime();
+    }
+}
+
 async function joinAppointment(appointmentId) {
     const response = await fetch(`/api/appointments/${appointmentId}/join`, {
         method: "POST",
@@ -142,10 +233,42 @@ async function joinAppointment(appointmentId) {
     });
     const data = await readJson(response);
 
+    // Xử lý xung đột khi tham gia nhóm
+    if (response.status === 409 && data.code === "CONFLICT_DETECTED") {
+        const conflictInfo = data.conflict;
+        const conflictMessage = `
+            <div style="text-align: left;">
+                <p><strong>Lịch bị xung đột:</strong></p>
+                <p><strong>Tiêu đề:</strong> ${escapeHtml(conflictInfo.conflictingTitle)}</p>
+                <p><strong>Thời gian:</strong> ${conflictInfo.conflictingStartTime} - ${conflictInfo.conflictingEndTime}</p>
+            </div>
+        `;
+
+        const result = await Swal.fire({
+            icon: "warning",
+            title: "Phát hiện xung đột lịch!",
+            html: conflictMessage,
+            showDenyButton: true,
+            confirmButtonText: "Thay thế lịch cũ",
+            denyButtonText: "Xóa lịch mới",
+            allowOutsideClick: false,
+            allowEscapeKey: false
+        });
+
+        if (result.isConfirmed) {
+            // Người dùng chọn xóa lịch cũ và tham gia nhóm
+            await resolveConflict(conflictInfo.conflictingAppointmentId, true, appointmentId);
+        } else if (result.isDenied) {
+            // Người dùng chọn giữ lịch cũ
+            await resolveConflict(conflictInfo.conflictingAppointmentId, false);
+        }
+        return;
+    }
+
     if (response.status === 409) {
         await Swal.fire({
             icon: "warning",
-            title: "Bạn đã có lịch trong giờ này!"
+            title: data.message || "Lỗi xung đột lịch"
         });
         return;
     }

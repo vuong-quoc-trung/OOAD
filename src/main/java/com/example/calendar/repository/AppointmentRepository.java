@@ -89,5 +89,22 @@ public interface AppointmentRepository extends JpaRepository<Appointment, Long> 
         """)
     Optional<Appointment> findWithMembersById(@Param("id") Long id);
 
+    @Query("""
+        select distinct a
+        from Appointment a
+        left join fetch a.host
+        left join fetch a.groupMembers gm
+        left join fetch gm.user
+        where (a.host.id = :userId or gm.user.id = :userId)
+          and a.startTime < :endTime
+          and a.endTime > :startTime
+        order by a.startTime asc
+        """)
+    List<Appointment> findOverlappingAppointmentsForUser(
+        @Param("userId") Long userId,
+        @Param("startTime") LocalDateTime startTime,
+        @Param("endTime") LocalDateTime endTime
+    );
+
     boolean existsByTitleIgnoreCaseAndType(String title, AppointmentType type);
 }
