@@ -163,6 +163,10 @@ function getJoinPromptTitle(code) {
  */
 async function handleConflict(data, payload) {
     const conflictInfo = data.conflict;
+    const newAppointmentId = data.autoMergeAppointmentId; // ID của lịch mới vừa tạo
+    
+    console.log("Handle conflict with newAppointmentId:", newAppointmentId);
+    
     const conflictMessage = `
         <div style="text-align: left;">
             <p><strong>Lịch bị xung đột:</strong></p>
@@ -183,11 +187,13 @@ async function handleConflict(data, payload) {
     });
 
     if (result.isConfirmed) {
-        // Người dùng chọn xóa lịch cũ và tạo lịch mới
-        await resolveConflict(conflictInfo.conflictingAppointmentId, true);
+        // Người dùng chọn xóa lịch cũ và giữ lịch mới
+        console.log("User chose to replace old appointment");
+        await resolveConflict(conflictInfo.conflictingAppointmentId, true, newAppointmentId);
     } else if (result.isDenied) {
-        // Người dùng chọn giữ lịch cũ
-        await resolveConflict(conflictInfo.conflictingAppointmentId, false);
+        // Người dùng chọn giữ lịch cũ, xóa lịch mới
+        console.log("User chose to delete new appointment");
+        await resolveConflict(conflictInfo.conflictingAppointmentId, false, newAppointmentId);
     }
     // Nếu cancel thì không làm gì, form vẫn còn
 }
@@ -216,16 +222,13 @@ async function resolveConflict(conflictingAppointmentId, replaceExisting, newApp
     if (data.code === "CONFLICT_RESOLVED") {
         appointmentForm.reset();
         setDefaultDateTime();
-        if (newAppointmentId) {
-            toast.fire({ icon: "success", title: "Đã xóa lịch cũ & tham gia nhóm mới!" });
-        } else {
-            toast.fire({ icon: "success", title: "Đã tạo lịch mới! Xóa lịch cũ thành công." });
-        }
+        toast.fire({ icon: "success", title: replaceExisting ? "Đã xóa lịch cũ & áp dụng lịch mới!" : "Hoàn tất!" });
         await loadAppointments();
     } else if (data.code === "CONFLICT_CANCELLED") {
-        toast.fire({ icon: "info", title: "Đã giữ lại lịch cũ. Không thay đổi gì." });
+        toast.fire({ icon: "info", title: "Đã giữ lại lịch cũ. Lịch mới bị hủy." });
         appointmentForm.reset();
         setDefaultDateTime();
+        await loadAppointments();
     }
 }
 
@@ -256,8 +259,8 @@ async function joinAppointment(appointmentId) {
             title: "Phát hiện xung đột lịch!",
             html: conflictMessage,
             showDenyButton: true,
-            confirmButtonText: "Thay thế lịch cũ",
-            denyButtonText: "Xóa lịch mới",
+            confirmButtonText: "Xóa lịch cũ & Tham gia nhóm",
+            denyButtonText: "Giữ lịch hiện tại",
             allowOutsideClick: false,
             allowEscapeKey: false
         });
@@ -266,8 +269,8 @@ async function joinAppointment(appointmentId) {
             // Người dùng chọn xóa lịch cũ và tham gia nhóm
             await resolveConflict(conflictInfo.conflictingAppointmentId, true, appointmentId);
         } else if (result.isDenied) {
-            // Người dùng chọn giữ lịch cũ
-            await resolveConflict(conflictInfo.conflictingAppointmentId, false);
+            // Người dùng chọn giữ lịch cũ, không tham gia nhóm
+            await resolveConflict(conflictInfo.conflictingAppointmentId, false, null);
         }
         return;
     }

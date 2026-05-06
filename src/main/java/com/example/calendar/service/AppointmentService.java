@@ -59,7 +59,7 @@ public class AppointmentService {
         ValidAppointment validAppointment = validateCreateRequest(request);
         User currentUser = getUser(validAppointment.userId());
 
-        // Kiểm tra xung đột với lịch cá nhân của người dùng
+        // Kiểm tra xung đột với lịch cá nhân của người dùng TRƯỚC khi lưu
         List<Appointment> conflictingAppointments = appointmentRepository.findOverlappingAppointmentsForUser(
             currentUser.getId(),
             validAppointment.startTime(),
@@ -67,7 +67,7 @@ public class AppointmentService {
         );
 
         if (!conflictingAppointments.isEmpty()) {
-            // Trả về thông tin xung đột thay vì throw exception
+            // Trả về thông tin xung đột, chưa lưu lịch mới vào DB
             Appointment conflicting = conflictingAppointments.get(0);
             ConflictConflictInfo conflictInfo = new ConflictConflictInfo(
                 conflicting.getId(),
@@ -75,12 +75,20 @@ public class AppointmentService {
                 conflicting.getStartTime().format(DATE_TIME_FORMATTER),
                 conflicting.getEndTime().format(DATE_TIME_FORMATTER)
             );
+            // Lưu lịch mới tạm thời để resolve sau
+            Appointment pendingAppointment = new Appointment();
+            pendingAppointment.setTitle(validAppointment.title());
+            pendingAppointment.setStartTime(validAppointment.startTime());
+            pendingAppointment.setEndTime(validAppointment.endTime());
+            pendingAppointment.setType(validAppointment.type());
+            pendingAppointment.setHost(currentUser);
+            Appointment savedPending = appointmentRepository.save(pendingAppointment);
             return new AppointmentMutationResponse(
                 "CONFLICT_DETECTED",
                 "Lich moi bi trung voi lich co san: " + conflicting.getTitle(),
-                null,
-                null,
-                null,
+                toResponse(savedPending),
+                savedPending.getId(),
+                validAppointment.title(),
                 conflictInfo
             );
         }
@@ -125,6 +133,7 @@ public class AppointmentService {
             );
         }
 
+        // Chỉ lưu lịch một lần duy nhất sau khi tất cả kiểm tra đã pass
         Appointment appointment = new Appointment();
         appointment.setTitle(validAppointment.title());
         appointment.setStartTime(validAppointment.startTime());
@@ -223,23 +232,28 @@ public class AppointmentService {
         }
 
         if (request.replaceExisting()) {
-            // Người dùng chọn xóa lịch cũ và tạo lịch mới
+            // Người dùng chọn xóa lịch cũ
             if (conflictingAppointment.getType() == AppointmentType.PERSONAL) {
                 if (!conflictingAppointment.getHost().getId().equals(request.userId())) {
                     throw new ApiForbiddenException("Chi co the xoa lich ca nhan cua chinh ban.");
                 }
+                // Xóa lịch cũ trước
                 appointmentRepository.delete(conflictingAppointment);
+                appointmentRepository.flush();
             } else {
-                // Nếu là lịch nhóm, chỉ xóa thành viên hiện tại
+                // Nếu là lịch nhóm, chỉ rời nhóm
                 GroupMember groupMember = groupMemberRepository.findByAppointment_IdAndUser_Id(
                     request.conflictingAppointmentId(), 
                     request.userId()
                 ).orElseThrow(() -> new ApiForbiddenException("Ban khong phai thanh vien cua nhom nay."));
                 groupMemberRepository.delete(groupMember);
+                groupMemberRepository.flush();
             }
 
-            // Nếu là yêu cầu tham gia nhóm mới
+            // Nếu là yêu cầu tham gia nhóm mới (newAppointment là nhóm muốn join)
             if (newAppointment != null && newAppointment.getType() == AppointmentType.GROUP) {
+                // Xóa lịch pending tạm thời (nếu có, và khác với nhóm muốn join)
+                // newAppointment ở đây là nhóm muốn join, không xóa nó
                 newAppointment.addGroupMember(currentUser);
                 Appointment savedAppointment = appointmentRepository.save(newAppointment);
                 return new AppointmentMutationResponse(
@@ -252,7 +266,7 @@ public class AppointmentService {
                 );
             }
 
-            // Nếu là tạo lịch cá nhân mới
+            // Nếu có lịch mới pending (tạm thời lưu khi CONFLICT_DETECTED), giữ lại lịch đó
             if (newAppointment != null) {
                 return new AppointmentMutationResponse(
                     "CONFLICT_RESOLVED",
@@ -273,7 +287,10 @@ public class AppointmentService {
                 null
             );
         } else {
-            // Người dùng chọn giữ lịch cũ, không làm gì
+            // Người dùng chọn giữ lịch cũ, xóa lịch mới pending nếu có
+            if (newAppointment != null) {
+                appointmentRepository.delete(newAppointment);
+            }
             return new AppointmentMutationResponse(
                 "CONFLICT_CANCELLED",
                 "Da huy hanh dong. Lich xung dot van con.",
