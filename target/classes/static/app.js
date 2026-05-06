@@ -100,6 +100,8 @@ async function createAppointment(event) {
         body: JSON.stringify(payload)
     });
     const data = await readJson(response);
+    
+    console.log("Create appointment response:", { status: response.status, data });
 
     if (response.status === 400) {
         toast.fire({ icon: "error", title: data.message || "Dữ liệu không hợp lệ" });
@@ -108,11 +110,13 @@ async function createAppointment(event) {
 
     // Xử lý xung đột lịch với 2 lựa chọn
     if (response.status === 409 && data.code === "CONFLICT_DETECTED") {
+        console.log("Conflict detected with options");
         await handleConflict(data, payload);
         return;
     }
 
     if (response.status === 409) {
+        console.log("Conflict but showing simple warning");
         await Swal.fire({
             icon: "warning",
             title: data.message || "Lỗi xung đột lịch"
@@ -232,9 +236,12 @@ async function joinAppointment(appointmentId) {
         body: JSON.stringify({ userId: currentUser.id })
     });
     const data = await readJson(response);
+    
+    console.log("Join appointment response:", { status: response.status, data });
 
     // Xử lý xung đột khi tham gia nhóm
     if (response.status === 409 && data.code === "CONFLICT_DETECTED") {
+        console.log("Join conflict detected with options");
         const conflictInfo = data.conflict;
         const conflictMessage = `
             <div style="text-align: left;">
@@ -266,6 +273,7 @@ async function joinAppointment(appointmentId) {
     }
 
     if (response.status === 409) {
+        console.log("Join conflict but showing simple warning");
         await Swal.fire({
             icon: "warning",
             title: data.message || "Lỗi xung đột lịch"
