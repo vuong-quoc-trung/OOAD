@@ -19,7 +19,7 @@ public class AuthController {
 
     @PostMapping("/login")
     public ResponseEntity<User> login(@RequestBody LoginRequest request) {
-        return userRepository.findByUsernameAndPassword(request.username(), request.password())
+        return userRepository.findByNameAndPassword(request.username(), request.password())
             .map(ResponseEntity::ok)
             .orElseGet(() -> ResponseEntity.status(HttpStatus.UNAUTHORIZED).build());
     }

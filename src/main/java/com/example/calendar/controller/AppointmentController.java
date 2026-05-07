@@ -5,7 +5,7 @@ import com.example.calendar.dto.AppointmentMutationResponse;
 import com.example.calendar.dto.AppointmentResponse;
 import com.example.calendar.dto.ConflictResolutionRequest;
 import com.example.calendar.dto.UserIdRequest;
-import com.example.calendar.service.AppointmentService;
+import com.example.calendar.service.CalendarService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -19,75 +19,70 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+/**
+ * AppointmentController — điểm vào REST cho Calendar / Appointment.
+ * Delegate toàn bộ sang CalendarService (lớp Calendar trong UML).
+ */
 @RestController
 @RequestMapping("/api/appointments")
 public class AppointmentController {
-    private final AppointmentService appointmentService;
 
-    public AppointmentController(AppointmentService appointmentService) {
-        this.appointmentService = appointmentService;
+    private final CalendarService calendarService;
+
+    public AppointmentController(CalendarService calendarService) {
+        this.calendarService = calendarService;
     }
 
     @GetMapping
     public List<AppointmentResponse> getAppointments(@RequestParam Long userId) {
-        return appointmentService.getAppointments(userId);
+        return calendarService.getAppointments(userId);
     }
 
     @PostMapping
     public ResponseEntity<AppointmentMutationResponse> createAppointment(
-        @RequestBody AppointmentCreateRequest request
+            @RequestBody AppointmentCreateRequest request
     ) {
-        AppointmentMutationResponse response = appointmentService.createAppointment(request);
-        HttpStatus status = getStatusByCode(response.code());
-        return ResponseEntity.status(status).body(response);
+        AppointmentMutationResponse response = calendarService.createAppointment(request);
+        return ResponseEntity.status(resolveStatus(response.code())).body(response);
     }
 
     @PostMapping("/{appointmentId}/join")
     public AppointmentMutationResponse joinAppointment(
-        @RequestParam(required = false) Long userId,
-        @RequestBody(required = false) UserIdRequest request,
-        @PathVariable Long appointmentId
+            @RequestParam(required = false) Long userId,
+            @RequestBody(required = false) UserIdRequest request,
+            @PathVariable Long appointmentId
     ) {
-        return appointmentService.joinAppointment(resolveUserId(userId, request), appointmentId);
+        return calendarService.joinAppointment(resolveUserId(userId, request), appointmentId);
     }
 
     @PostMapping("/conflict/resolve")
-    public AppointmentMutationResponse resolveConflict(
-        @RequestBody ConflictResolutionRequest request
-    ) {
-        return appointmentService.resolveConflict(request);
+    public AppointmentMutationResponse resolveConflict(@RequestBody ConflictResolutionRequest request) {
+        return calendarService.resolveConflict(request);
     }
 
     @DeleteMapping("/{appointmentId}")
     public AppointmentMutationResponse deleteOrLeaveAppointment(
-        @RequestParam(required = false) Long userId,
-        @RequestBody(required = false) UserIdRequest request,
-        @PathVariable Long appointmentId
+            @RequestParam(required = false) Long userId,
+            @RequestBody(required = false) UserIdRequest request,
+            @PathVariable Long appointmentId
     ) {
-        return appointmentService.deleteOrLeaveAppointment(resolveUserId(userId, request), appointmentId);
+        return calendarService.deleteOrLeaveAppointment(resolveUserId(userId, request), appointmentId);
     }
+
+    // ─── Private helpers ──────────────────────────────────────────────────────
 
     private Long resolveUserId(Long queryUserId, UserIdRequest request) {
-        if (queryUserId != null) {
-            return queryUserId;
-        }
-        return request == null ? null : request.userId();
+        return queryUserId != null ? queryUserId : (request == null ? null : request.userId());
     }
 
-    /**
-     * Xác định HTTP status code dựa trên mã phản hồi
-     */
-    private HttpStatus getStatusByCode(String code) {
+    private HttpStatus resolveStatus(String code) {
         return switch (code) {
-            case "AUTO_MERGE" -> HttpStatus.OK;
-            case "CREATED" -> HttpStatus.CREATED;
-            case "JOINED" -> HttpStatus.OK;
-            case "CONFLICT_DETECTED" -> HttpStatus.CONFLICT;
-            case "CONFLICT_RESOLVED" -> HttpStatus.OK;
-            case "CONFLICT_CANCELLED" -> HttpStatus.OK;
-            case "DELETED", "LEFT_GROUP" -> HttpStatus.NO_CONTENT;
-            case "GROUP_TIME_CONFLICT" -> HttpStatus.CONFLICT;
-            default -> HttpStatus.OK;
+            case "CREATED"           -> HttpStatus.CREATED;
+            case "CONFLICT_DETECTED",
+                 "GROUP_TIME_CONFLICT" -> HttpStatus.CONFLICT;
+            case "DELETED",
+                 "LEFT_GROUP"        -> HttpStatus.NO_CONTENT;
+            default                  -> HttpStatus.OK;
         };
     }
 }

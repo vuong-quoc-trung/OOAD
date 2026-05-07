@@ -2,31 +2,49 @@ package com.example.calendar.entity;
 
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
+import jakarta.persistence.DiscriminatorColumn;
+import jakarta.persistence.DiscriminatorType;
+import jakarta.persistence.DiscriminatorValue;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Inheritance;
+import jakarta.persistence.InheritanceType;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Lớp Appointment — ánh xạ theo sơ đồ UML.
+ * Sử dụng Single Table Inheritance (TPH): GroupMeeting kế thừa lớp này.
+ */
 @Entity
 @Table(name = "appointments")
+@Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "dtype", discriminatorType = DiscriminatorType.STRING)
+@DiscriminatorValue("PERSONAL")
 public class Appointment {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "appointment_id")
+    private Long appointmentId;
 
-    @Column(nullable = false)
-    private String title;
+    /** Tên cuộc hẹn — tương ứng +name: string trong UML */
+    @Column(name = "appointment_name", nullable = false)
+    private String name;
+
+    /** Địa điểm — tương ứng +location: string trong UML */
+    @Column(name = "location")
+    private String location;
 
     @Column(name = "start_time", nullable = false)
     private LocalDateTime startTime;
@@ -34,31 +52,87 @@ public class Appointment {
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 20)
-    private AppointmentType type;
+    @Column(name = "duration")
+    private int duration;
+
+    /** Ánh xạ cột discriminator để Spring Data JPA có thể query (read-only) */
+    @Column(name = "dtype", insertable = false, updatable = false)
+    private String dtype;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "host_id", nullable = false)
     private User host;
 
+    /** Quan hệ Appointment 1 — Includes — 0..* Reminder */
     @OneToMany(mappedBy = "appointment", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<GroupMember> groupMembers = new ArrayList<>();
+    private List<Reminder> reminders = new ArrayList<>();
 
+    // ─── Constructors ──────────────────────────────────────────────────────────
+
+    public Appointment() {
+    }
+
+    // ─── UML Methods ──────────────────────────────────────────────────────────
+
+    /** +getDetails(): string */
+    public String getDetails() {
+        return String.format("Appointment[id=%d, name=%s, location=%s, start=%s, end=%s, duration=%dmin]",
+                appointmentId, name, location, startTime, endTime, duration);
+    }
+
+    /** +setDetails() — đặt đồng thời các trường chính và tự tính duration */
+    public void setDetails(String name, String location, LocalDateTime startTime, LocalDateTime endTime) {
+        this.name = name;
+        this.location = location;
+        this.startTime = startTime;
+        this.endTime = endTime;
+        if (startTime != null && endTime != null) {
+            this.duration = (int) Duration.between(startTime, endTime).toMinutes();
+        }
+    }
+
+    // ─── Getters / Setters ────────────────────────────────────────────────────
+
+    public Long getAppointmentId() {
+        return appointmentId;
+    }
+
+    public void setAppointmentId(Long appointmentId) {
+        this.appointmentId = appointmentId;
+    }
+
+    /** Alias backward-compat: getId() → appointmentId */
     public Long getId() {
-        return id;
+        return appointmentId;
     }
 
     public void setId(Long id) {
-        this.id = id;
+        this.appointmentId = id;
     }
 
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    /** Alias backward-compat: getTitle() → name */
     public String getTitle() {
-        return title;
+        return name;
     }
 
     public void setTitle(String title) {
-        this.title = title;
+        this.name = title;
+    }
+
+    public String getLocation() {
+        return location;
+    }
+
+    public void setLocation(String location) {
+        this.location = location;
     }
 
     public LocalDateTime getStartTime() {
@@ -67,6 +141,7 @@ public class Appointment {
 
     public void setStartTime(LocalDateTime startTime) {
         this.startTime = startTime;
+        recalculateDuration();
     }
 
     public LocalDateTime getEndTime() {
@@ -75,14 +150,15 @@ public class Appointment {
 
     public void setEndTime(LocalDateTime endTime) {
         this.endTime = endTime;
+        recalculateDuration();
     }
 
-    public AppointmentType getType() {
-        return type;
+    public int getDuration() {
+        return duration;
     }
 
-    public void setType(AppointmentType type) {
-        this.type = type;
+    public void setDuration(int duration) {
+        this.duration = duration;
     }
 
     public User getHost() {
@@ -93,42 +169,25 @@ public class Appointment {
         this.host = host;
     }
 
-    public List<GroupMember> getGroupMembers() {
-        return groupMembers;
+    public List<Reminder> getReminders() {
+        return reminders;
     }
 
-    public void setGroupMembers(List<GroupMember> groupMembers) {
-        this.groupMembers.clear();
-        if (groupMembers == null) {
-            return;
+    public void setReminders(List<Reminder> reminders) {
+        this.reminders = reminders;
+    }
+
+    public void addReminder(Reminder reminder) {
+        if (reminder == null) return;
+        reminders.add(reminder);
+        reminder.setAppointment(this);
+    }
+
+    // ─── Private helpers ──────────────────────────────────────────────────────
+
+    private void recalculateDuration() {
+        if (this.startTime != null && this.endTime != null) {
+            this.duration = (int) Duration.between(this.startTime, this.endTime).toMinutes();
         }
-
-        groupMembers.forEach(this::addGroupMember);
-    }
-
-    public void addGroupMember(GroupMember groupMember) {
-        if (groupMember == null) {
-            return;
-        }
-
-        groupMembers.add(groupMember);
-        groupMember.setAppointment(this);
-    }
-
-    public void addGroupMember(User user) {
-        GroupMember groupMember = new GroupMember();
-        groupMember.setAppointment(this);
-        groupMember.setUser(user);
-        groupMembers.add(groupMember);
-    }
-
-    public void removeGroupMember(GroupMember groupMember) {
-        if (groupMember == null) {
-            return;
-        }
-
-        groupMembers.remove(groupMember);
-        groupMember.setAppointment(null);
-        groupMember.setUser(null);
     }
 }

@@ -7,36 +7,83 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
+/**
+ * User — ánh xạ theo sơ đồ UML.
+ * +userId: int
+ * +name: string
+ * +createAppointment()
+ * +joinGroupMeeting()
+ *
+ * Ghi chú: cột DB vẫn là "username" để không phá vỡ dữ liệu hiện có.
+ */
 @Entity
 @Table(name = "users")
 public class User {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @Column(name = "id")
+    private Long userId;
 
-    @Column(nullable = false, unique = true)
-    private String username;
+    /** +name: string — cột DB giữ tên "username" cho tương thích */
+    @Column(name = "username", nullable = false, unique = true)
+    private String name;
 
     @Column(nullable = false)
     private String password;
 
+    // ─── Constructors ──────────────────────────────────────────────────────────
+
     public User() {
     }
 
+    // ─── UML Methods (stub — orchestrated by CalendarService / UI) ────────────
+
+    /** +createAppointment() — điều phối bởi CalendarService */
+    public void createAppointment() {
+        // Business logic handled by CalendarService.addAppointment()
+    }
+
+    /** +joinGroupMeeting() — điều phối bởi CalendarService */
+    public void joinGroupMeeting() {
+        // Business logic handled by CalendarService.joinAppointment()
+    }
+
+    // ─── Getters / Setters ────────────────────────────────────────────────────
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    /** Alias backward-compat: getId() → userId */
     public Long getId() {
-        return id;
+        return userId;
     }
 
     public void setId(Long id) {
-        this.id = id;
+        this.userId = id;
     }
 
+    /** +name: string (UML) */
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    /** Alias backward-compat: getUsername() → name */
     public String getUsername() {
-        return username;
+        return name;
     }
 
     public void setUsername(String username) {
-        this.username = username;
+        this.name = username;
     }
 
     public String getPassword() {

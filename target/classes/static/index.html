@@ -3,69 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Hệ thống quản lý lịch hẹn thông minh với nhắc nhở tự động">
     <title>Calendar System</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/styles.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body>
     <main class="page">
-        <section id="login-box" class="panel">
-            <h1>Login</h1>
+
+        <!-- ══════════════════ LOGIN (AppointmentWindow: inputAppointmentInfo) ══════════════════ -->
+        <section id="login-box" class="panel glass-panel">
+            <div class="login-header">
+                <div class="logo-icon">📅</div>
+                <h1>Calendar System</h1>
+                <p class="subtitle">Quản lý lịch hẹn thông minh</p>
+            </div>
             <form id="login-form" class="form">
                 <label>
-                    Username
-                    <input id="username" type="text" autocomplete="username" required>
+                    <span>Tên đăng nhập</span>
+                    <input id="username" type="text" autocomplete="username" placeholder="Nhập username..." required>
                 </label>
                 <label>
-                    Password
-                    <input id="password" type="password" autocomplete="current-password" required>
+                    <span>Mật khẩu</span>
+                    <input id="password" type="password" autocomplete="current-password" placeholder="Nhập password..." required>
                 </label>
-                <button type="submit">Login</button>
+                <button type="submit" class="btn-primary">Đăng nhập</button>
             </form>
         </section>
 
+        <!-- ══════════════════ APP (AppointmentWindow) ══════════════════ -->
         <section id="app-box" class="hidden">
-            <div class="topbar">
-                <h1>Calendar System</h1>
-                <div>
-                    <span id="current-user"></span>
-                    <button id="logout-button" type="button" class="secondary">Logout</button>
+
+            <!-- Topbar -->
+            <header class="topbar">
+                <div class="topbar-brand">
+                    <span class="logo-icon-sm">📅</span>
+                    <h1>Calendar System</h1>
                 </div>
+                <div class="topbar-user">
+                    <span class="user-badge" id="current-user"></span>
+                    <button id="logout-button" type="button" class="btn-ghost">Đăng xuất</button>
+                </div>
+            </header>
+
+            <div class="app-layout">
+
+                <!-- ── Left: Create Appointment (AppointmentWindow: openAddAppointmentWindow) ── -->
+                <aside class="sidebar">
+                    <section class="panel">
+                        <h2>✏️ Tạo lịch hẹn</h2>
+                        <form id="appointment-form" class="form">
+
+                            <!-- name (UML: +name: string) -->
+                            <label>
+                                <span>Tên lịch hẹn <span class="required">*</span></span>
+                                <input id="apt-name" type="text" placeholder="Nhập tên lịch hẹn..." required>
+                            </label>
+
+                            <!-- location (UML: +location: string) -->
+                            <label>
+                                <span>Địa điểm</span>
+                                <input id="apt-location" type="text" placeholder="Phòng họp, địa chỉ...">
+                            </label>
+
+                            <!-- type: PERSONAL / GROUP (GroupMeeting) -->
+                            <label>
+                                <span>Loại lịch</span>
+                                <select id="apt-type">
+                                    <option value="PERSONAL">📌 Cá nhân</option>
+                                    <option value="GROUP">👥 Nhóm họp (GroupMeeting)</option>
+                                </select>
+                            </label>
+
+                            <!-- startTime / endTime (UML Appointment) -->
+                            <label>
+                                <span>Bắt đầu <span class="required">*</span></span>
+                                <input id="startTime" type="datetime-local" required>
+                            </label>
+                            <label>
+                                <span>Kết thúc <span class="required">*</span></span>
+                                <input id="endTime" type="datetime-local" required>
+                            </label>
+
+                            <!-- Reminder section (UML: Reminder, Calendar +addReminder) -->
+                            <div class="reminder-section">
+                                <div class="reminder-toggle">
+                                    <label class="toggle-label">
+                                        <input id="reminder-enabled" type="checkbox">
+                                        <span class="toggle-text">🔔 Đặt nhắc nhở (Reminder)</span>
+                                    </label>
+                                </div>
+                                <div id="reminder-fields" class="reminder-fields hidden">
+                                    <label>
+                                        <span>Thời gian nhắc</span>
+                                        <input id="reminder-time" type="datetime-local">
+                                    </label>
+                                    <label>
+                                        <span>Nội dung nhắc</span>
+                                        <input id="reminder-message" type="text" placeholder="VD: Chuẩn bị tài liệu...">
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button type="submit" class="btn-primary">💾 Lưu lịch hẹn</button>
+                        </form>
+                    </section>
+                </aside>
+
+                <!-- ── Right: Appointment List ── -->
+                <div class="main-content">
+                    <section class="panel">
+                        <div class="list-head">
+                            <h2>📋 Danh sách lịch hẹn</h2>
+                            <button id="reload-button" type="button" class="btn-secondary">🔄 Tải lại</button>
+                        </div>
+                        <div id="appointments" class="appointments-grid"></div>
+                    </section>
+                </div>
+
             </div>
-
-            <section class="panel">
-                <h2>Create Appointment</h2>
-                <form id="appointment-form" class="form grid">
-                    <label>
-                        Title
-                        <input id="title" type="text" required>
-                    </label>
-                    <label>
-                        Type
-                        <select id="type">
-                            <option value="PERSONAL">PERSONAL</option>
-                            <option value="GROUP">GROUP</option>
-                        </select>
-                    </label>
-                    <label>
-                        Start time
-                        <input id="startTime" type="datetime-local" required>
-                    </label>
-                    <label>
-                        End time
-                        <input id="endTime" type="datetime-local" required>
-                    </label>
-                    <button type="submit">Save</button>
-                </form>
-            </section>
-
-            <section class="panel">
-                <div class="list-head">
-                    <h2>Appointments</h2>
-                    <button id="reload-button" type="button" class="secondary">Reload</button>
-                </div>
-                <div id="appointments"></div>
-            </section>
         </section>
     </main>
 
