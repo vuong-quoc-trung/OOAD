@@ -19,7 +19,9 @@ public record AppointmentCreateRequest(
         /** Thời gian nhắc nhở (tuỳ chọn) */
         LocalDateTime reminderTime,
         /** Nội dung nhắc nhở (tuỳ chọn) */
-        String reminderMessage
+        String reminderMessage,
+        /** Bỏ qua cảnh báo trùng giờ nhóm (nếu có) */
+        Boolean ignoreGroupConflict
 ) {
     /** Alias backward-compat: title() → name */
     public String title() {

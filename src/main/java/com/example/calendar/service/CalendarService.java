@@ -169,15 +169,18 @@ public class CalendarService {
         }
 
         // 3. GroupMeeting trùng giờ → gợi ý tham gia
-        Appointment overlapping = appointmentRepository.findOverlappingGroupsForUserToJoin(
-                currentUser.getUserId(), input.startTime(), input.endTime())
-                .stream().findFirst().orElse(null);
+        boolean ignoreGroupConflict = request.ignoreGroupConflict() != null && request.ignoreGroupConflict();
+        if (!ignoreGroupConflict) {
+            Appointment overlapping = appointmentRepository.findOverlappingGroupsForUserToJoin(
+                    currentUser.getUserId(), input.startTime(), input.endTime())
+                    .stream().findFirst().orElse(null);
 
-        if (overlapping != null) {
-            return new AppointmentMutationResponse(
-                    "GROUP_TIME_CONFLICT", "Lich nay bi trung gio voi mot cuoc hop nhom.",
-                    toResponse(overlapping), overlapping.getAppointmentId(), overlapping.getName(),
-                    buildConflictInfo(overlapping));
+            if (overlapping != null) {
+                return new AppointmentMutationResponse(
+                        "GROUP_TIME_CONFLICT", "Lich nay bi trung gio voi mot cuoc hop nhom.",
+                        toResponse(overlapping), overlapping.getAppointmentId(), overlapping.getName(),
+                        buildConflictInfo(overlapping));
+            }
         }
 
         // 4. Lưu lịch mới (UML: addAppointment)

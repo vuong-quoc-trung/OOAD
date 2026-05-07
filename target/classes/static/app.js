@@ -122,9 +122,14 @@ async function createAppointment(event) {
         endTime:   document.getElementById("endTime").value,
         type:      document.getElementById("apt-type").value,
         reminderTime:    hasReminder ? document.getElementById("reminder-time").value || null : null,
-        reminderMessage: hasReminder ? document.getElementById("reminder-message").value.trim() || null : null
+        reminderMessage: hasReminder ? document.getElementById("reminder-message").value.trim() || null : null,
+        ignoreGroupConflict: false
     };
 
+    await submitCreateAppointment(payload);
+}
+
+async function submitCreateAppointment(payload) {
     const response = await fetch("/api/appointments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -143,6 +148,13 @@ async function createAppointment(event) {
         return;
     }
 
+    // Auto-merge hoặc gợi ý tham gia nhóm (UML: promptJoinGroupMeeting)
+    if (data.code === "AUTO_MERGE" || data.code === "GROUP_TIME_CONFLICT") {
+        const joined = await promptJoinGroupMeeting(data.code);
+        if (joined) await joinAppointment(data.autoMergeAppointmentId);
+        return;
+    }
+
     if (response.status === 409) {
         showWarningMessage(data.message || "Lỗi xung đột lịch");
         return;
@@ -150,13 +162,6 @@ async function createAppointment(event) {
 
     if (!response.ok) {
         toast.fire({ icon: "error", title: data.message || "Không tạo được lịch" });
-        return;
-    }
-
-    // Auto-merge hoặc gợi ý tham gia nhóm (UML: promptJoinGroupMeeting)
-    if (data.code === "AUTO_MERGE" || data.code === "GROUP_TIME_CONFLICT") {
-        const joined = await promptJoinGroupMeeting(data.code);
-        if (joined) await joinAppointment(data.autoMergeAppointmentId);
         return;
     }
 
@@ -209,7 +214,7 @@ async function promptJoinGroupMeeting(code) {
         title,
         showCancelButton: true,
         confirmButtonText: "Tham gia",
-        cancelButtonText: "Bỏ qua",
+        cancelButtonText: "Hủy",
         confirmButtonColor: "#22c55e"
     });
     return result.isConfirmed;
