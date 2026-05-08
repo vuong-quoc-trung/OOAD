@@ -11,12 +11,7 @@ import jakarta.persistence.Table;
 
 import java.time.LocalDateTime;
 
-/**
- * Reminder — Nhắc nhở được gắn với một Appointment.
- *
- * Quan hệ (UML): Appointment (1) ─ Includes ─ (0..*) Reminder
- *               Calendar    (1) ─ Manages  ─ (0..*) Reminder
- */
+
 @Entity
 @Table(name = "reminders")
 public class Reminder {

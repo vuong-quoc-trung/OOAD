@@ -7,15 +7,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/**
- * User — ánh xạ theo sơ đồ UML.
- * +userId: int
- * +name: string
- * +createAppointment()
- * +joinGroupMeeting()
- *
- * Ghi chú: cột DB vẫn là "username" để không phá vỡ dữ liệu hiện có.
- */
+
 @Entity
 @Table(name = "users")
 public class User {

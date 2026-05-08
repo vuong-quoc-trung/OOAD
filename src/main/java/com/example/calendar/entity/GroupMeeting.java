@@ -9,15 +9,7 @@ import jakarta.persistence.ManyToMany;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * GroupMeeting — kế thừa Appointment theo sơ đồ UML ("Is a" Appointment).
- * Single Table Inheritance, discriminator = "GROUP".
- *
- * Quan hệ UML:
- *   User (1..*) ─ Includes ─ (1) GroupMeeting
- *
- * Theo UML: participantsList: List<User>  (không có lớp GroupMember trung gian)
- */
+
 @Entity
 @DiscriminatorValue("GROUP")
 public class GroupMeeting extends Appointment {
@@ -34,7 +26,6 @@ public class GroupMeeting extends Appointment {
     )
     private List<User> participantsList = new ArrayList<>();
 
-    // ─── UML Methods ──────────────────────────────────────────────────────────
 
     /**
      * + addParticipant(user: User)

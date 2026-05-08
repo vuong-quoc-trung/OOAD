@@ -14,25 +14,7 @@ import jakarta.persistence.Transient;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * Calendar — lớp Calendar theo đúng sơ đồ UML Class Diagram.
- *
- * Quan hệ:
- *   User   (1) ─ Owns    ─ (1)   Calendar
- *   Calendar (1) ─ Manages ─ (0..*) Appointment
- *   Calendar (1) ─ Manages ─ (0..*) Reminder
- *   UI (AppointmentWindow) ─ Calls ─ Calendar
- *
- * Các thuộc tính UML:
- *   + appointmentsList: List<Appointment>
- *   + remindersList:    List<Reminder>
- *
- * Các phương thức UML:
- *   + addAppointment(app: Appointment)
- *   + checkConflict(startTime, endTime): boolean
- *   + findGroupMeeting(name, duration): GroupMeeting
- *   + addReminder(rem: Reminder)
- */
+
 @Entity
 @Table(name = "calendars")
 public class Calendar {

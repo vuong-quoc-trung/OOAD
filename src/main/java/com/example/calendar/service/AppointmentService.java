@@ -6,7 +6,6 @@ import com.example.calendar.dto.AppointmentMutationResponse;
 import com.example.calendar.dto.AppointmentResponse;
 import com.example.calendar.dto.ConflictConflictInfo;
 import com.example.calendar.dto.ConflictResolutionRequest;
-import com.example.calendar.dto.ReminderCreateRequest;
 import com.example.calendar.dto.ReminderResponse;
 import com.example.calendar.entity.Appointment;
 import com.example.calendar.entity.Calendar;
@@ -17,9 +16,7 @@ import com.example.calendar.exception.ApiForbiddenException;
 import com.example.calendar.exception.ApiNotFoundException;
 import com.example.calendar.exception.ApiValidationException;
 import com.example.calendar.repository.AppointmentRepository;
-import com.example.calendar.repository.CalendarRepository;
 import com.example.calendar.repository.ReminderRepository;
-import com.example.calendar.repository.UserRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,113 +26,42 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * CalendarService — Service triển khai nghiệp vụ của lớp Calendar (UML).
- *
- * Quan hệ UML được phản ánh:
- *   UI (AppointmentWindow) ─ Calls ─ Calendar (service này)
- *   Calendar ─ Manages ─ Appointment (via AppointmentRepository)
- *   Calendar ─ Manages ─ Reminder    (via ReminderRepository)
- */
 @Service
-public class CalendarService {
+public class AppointmentService {
 
     private static final DateTimeFormatter FORMATTER =
             DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
 
     private final AppointmentRepository appointmentRepository;
-    private final UserRepository         userRepository;
-    private final ReminderRepository     reminderRepository;
-    private final CalendarRepository     calendarRepository;
+    private final CalendarCoreService calendarCoreService;
+    private final ReminderRepository reminderRepository;
+    private final ReminderService reminderService;
 
-    public CalendarService(
+    public AppointmentService(
             AppointmentRepository appointmentRepository,
-            UserRepository userRepository,
+            CalendarCoreService calendarCoreService,
             ReminderRepository reminderRepository,
-            CalendarRepository calendarRepository
+            ReminderService reminderService
     ) {
         this.appointmentRepository = appointmentRepository;
-        this.userRepository        = userRepository;
-        this.reminderRepository    = reminderRepository;
-        this.calendarRepository    = calendarRepository;
+        this.calendarCoreService = calendarCoreService;
+        this.reminderRepository = reminderRepository;
+        this.reminderService = reminderService;
     }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Calendar entity helpers
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    /** Lấy (hoặc tạo mới) Calendar của user. */
-    private Calendar getOrCreateCalendar(User user) {
-        return calendarRepository.findByOwner_UserId(user.getUserId())
-                .orElseGet(() -> {
-                    Calendar cal = new Calendar();
-                    cal.setOwner(user);
-                    return calendarRepository.save(cal);
-                });
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // UML: Calendar +checkConflict(startTime, endTime): boolean
-    // ═══════════════════════════════════════════════════════════════════════════
 
     @Transactional(readOnly = true)
     public boolean checkConflict(Long userId, LocalDateTime startTime, LocalDateTime endTime) {
         return appointmentRepository.existsOverlappingAppointmentForUser(userId, startTime, endTime);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // UML: Calendar +findGroupMeeting(name, duration): GroupMeeting
-    // ═══════════════════════════════════════════════════════════════════════════
-
     @Transactional(readOnly = true)
     public Appointment findGroupMeeting(String name, LocalDateTime startTime, LocalDateTime endTime) {
         return appointmentRepository.findFirstExactGroupMatch(name, startTime, endTime).orElse(null);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // UML: Calendar +addReminder(rem: Reminder)
-    // ═══════════════════════════════════════════════════════════════════════════
-
-    @Transactional
-    public ReminderResponse addReminder(ReminderCreateRequest request) {
-        if (request.appointmentId() == null) throw new ApiValidationException("appointmentId la bat buoc.");
-        if (request.reminderTime()   == null) throw new ApiValidationException("reminderTime la bat buoc.");
-
-        Appointment appointment = appointmentRepository.findById(request.appointmentId())
-                .orElseThrow(() -> new ApiNotFoundException("Khong tim thay lich."));
-
-        Reminder reminder = new Reminder();
-        reminder.setReminderTime(request.reminderTime());
-        reminder.setMessage(request.message() != null ? request.message().trim() : "Nhac nho lich");
-        reminder.setAppointment(appointment);
-
-        // UML: Calendar +addReminder(rem) — gắn vào Calendar entity của user
-        Calendar calendar = getOrCreateCalendar(appointment.getHost());
-        calendar.addReminder(reminder);   // stub method trên entity
-
-        return toReminderResponse(reminderRepository.save(reminder));
-    }
-
-    @Transactional(readOnly = true)
-    public List<ReminderResponse> getReminders(Long appointmentId) {
-        return reminderRepository.findByAppointmentId(appointmentId)
-                .stream().map(this::toReminderResponse).toList();
-    }
-
-    @Transactional
-    public void deleteReminder(Long reminderId) {
-        if (!reminderRepository.existsById(reminderId))
-            throw new ApiNotFoundException("Khong tim thay reminder.");
-        reminderRepository.deleteById(reminderId);
-    }
-
-    // ═══════════════════════════════════════════════════════════════════════════
-    // UML: Calendar +addAppointment(app: Appointment)
-    // ═══════════════════════════════════════════════════════════════════════════
-
     @Transactional(readOnly = true)
     public List<AppointmentResponse> getAppointments(Long userId) {
-        getUser(userId);
+        calendarCoreService.getUser(userId); // Validate user
         return appointmentRepository.findVisibleAppointmentsByUserId(userId)
                 .stream().map(this::toResponse).toList();
     }
@@ -143,7 +69,7 @@ public class CalendarService {
     @Transactional
     public AppointmentMutationResponse createAppointment(AppointmentCreateRequest request) {
         ValidatedInput input = validateCreateRequest(request);
-        User currentUser = getUser(input.userId());
+        User currentUser = calendarCoreService.getUser(input.userId());
         boolean isGroup  = "GROUP".equalsIgnoreCase(input.type());
 
         // 1. Kiểm tra xung đột lịch cá nhân (UML: checkConflict)
@@ -188,7 +114,7 @@ public class CalendarService {
         Appointment saved       = appointmentRepository.save(appointment);
 
         // Cập nhật Calendar entity của user
-        Calendar calendar = getOrCreateCalendar(currentUser);
+        Calendar calendar = calendarCoreService.getOrCreateCalendar(currentUser);
         calendar.addAppointment(saved);
 
         // 5. Tạo Reminder nếu user chọn (UML: addReminder)
@@ -207,13 +133,9 @@ public class CalendarService {
                 null, null, null);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Join / Leave / Delete (UML: User +joinGroupMeeting)
-    // ═══════════════════════════════════════════════════════════════════════════
-
     @Transactional
     public AppointmentMutationResponse joinAppointment(Long userId, Long appointmentId) {
-        User currentUser = getUser(userId);
+        User currentUser = calendarCoreService.getUser(userId);
         Appointment appointment = appointmentRepository.findWithMembersById(appointmentId)
                 .orElseThrow(() -> new ApiNotFoundException("Khong tim thay lich."));
 
@@ -250,7 +172,7 @@ public class CalendarService {
     @Transactional
     public AppointmentMutationResponse resolveConflict(ConflictResolutionRequest request) {
         validateConflictResolutionRequest(request);
-        User currentUser = getUser(request.userId());
+        User currentUser = calendarCoreService.getUser(request.userId());
 
         Appointment conflictingAppointment = appointmentRepository.findById(request.conflictingAppointmentId())
                 .orElseThrow(() -> new ApiNotFoundException("Khong tim thay lich xung dot."));
@@ -298,7 +220,7 @@ public class CalendarService {
 
     @Transactional
     public AppointmentMutationResponse deleteOrLeaveAppointment(Long userId, Long appointmentId) {
-        User currentUser = getUser(userId);
+        User currentUser = calendarCoreService.getUser(userId);
         Appointment appointment = appointmentRepository.findWithMembersById(appointmentId)
                 .orElseThrow(() -> new ApiNotFoundException("Khong tim thay lich."));
 
@@ -321,19 +243,15 @@ public class CalendarService {
         return new AppointmentMutationResponse("LEFT_GROUP", "Da roi nhom.", null, null, null, null);
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Mapping helpers
-    // ═══════════════════════════════════════════════════════════════════════════
+    // ─── Private Helpers ───────────────────────────────────────────────────────
 
     private AppointmentResponse toResponse(Appointment appointment) {
-        // Host luôn là thành viên đầu tiên
         List<AppointmentMemberResponse> members = new ArrayList<>();
         members.add(new AppointmentMemberResponse(
                 appointment.getHost().getUserId(),
                 appointment.getHost().getName(),
                 true));
 
-        // Participants (chỉ GroupMeeting có)
         if (appointment instanceof GroupMeeting gm) {
             gm.getParticipantsList().stream()
                     .filter(u -> !u.getUserId().equals(appointment.getHost().getUserId()))
@@ -343,7 +261,7 @@ public class CalendarService {
         }
 
         List<ReminderResponse> reminders = appointment.getReminders().stream()
-                .map(this::toReminderResponse).toList();
+                .map(reminderService::toReminderResponse).toList();
 
         String dtype = appointment instanceof GroupMeeting ? "GROUP" : "PERSONAL";
 
@@ -359,12 +277,6 @@ public class CalendarService {
                 appointment.getHost().getName(),
                 members,
                 reminders);
-    }
-
-    private ReminderResponse toReminderResponse(Reminder r) {
-        return new ReminderResponse(
-                r.getReminderId(), r.getReminderTime(), r.getMessage(),
-                r.getAppointment() != null ? r.getAppointment().getAppointmentId() : null);
     }
 
     private ConflictConflictInfo buildConflictInfo(Appointment a) {
@@ -383,10 +295,6 @@ public class CalendarService {
         return a;
     }
 
-    // ═══════════════════════════════════════════════════════════════════════════
-    // Validation
-    // ═══════════════════════════════════════════════════════════════════════════
-
     private ValidatedInput validateCreateRequest(AppointmentCreateRequest request) {
         if (request == null)          throw new ApiValidationException("Request body la bat buoc.");
         if (request.userId() == null) throw new ApiValidationException("userId la bat buoc.");
@@ -401,12 +309,6 @@ public class CalendarService {
 
         String type = request.type() != null ? request.type().toUpperCase() : "PERSONAL";
         return new ValidatedInput(request.userId(), name, location, request.startTime(), request.endTime(), type);
-    }
-
-    private User getUser(Long userId) {
-        if (userId == null) throw new ApiValidationException("userId la bat buoc.");
-        return userRepository.findById(userId)
-                .orElseThrow(() -> new ApiNotFoundException("Khong tim thay user."));
     }
 
     private String requireNonBlank(String value, String msg) {

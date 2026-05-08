@@ -21,10 +21,8 @@ com\example\calendar\entity\Reminder.class
 com\example\calendar\exception\ApiValidationException.class
 com\example\calendar\config\DataSeeder.class
 com\example\calendar\dto\AppointmentMemberResponse.class
-com\example\calendar\service\CalendarService.class
 com\example\calendar\repository\UserRepository.class
 com\example\calendar\dto\ReminderResponse.class
-com\example\calendar\service\CalendarService$ValidatedInput.class
 com\example\calendar\dto\AppointmentResponse.class
 com\example\calendar\dto\ApiErrorResponse.class
 com\example\calendar\dto\ConflictResolutionRequest.class

@@ -2,7 +2,7 @@ package com.example.calendar.controller;
 
 import com.example.calendar.dto.ReminderCreateRequest;
 import com.example.calendar.dto.ReminderResponse;
-import com.example.calendar.service.CalendarService;
+import com.example.calendar.service.ReminderService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,10 +26,10 @@ import java.util.List;
 @RequestMapping("/api/reminders")
 public class ReminderController {
 
-    private final CalendarService calendarService;
+    private final ReminderService reminderService;
 
-    public ReminderController(CalendarService calendarService) {
-        this.calendarService = calendarService;
+    public ReminderController(ReminderService reminderService) {
+        this.reminderService = reminderService;
     }
 
     /**
@@ -39,7 +39,7 @@ public class ReminderController {
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     public ReminderResponse createReminder(@RequestBody ReminderCreateRequest request) {
-        return calendarService.addReminder(request);
+        return reminderService.addReminder(request);
     }
 
     /**
@@ -47,7 +47,7 @@ public class ReminderController {
      */
     @GetMapping
     public List<ReminderResponse> getReminders(@RequestParam Long appointmentId) {
-        return calendarService.getReminders(appointmentId);
+        return reminderService.getReminders(appointmentId);
     }
 
     /**
@@ -56,6 +56,6 @@ public class ReminderController {
     @DeleteMapping("/{reminderId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void deleteReminder(@PathVariable Long reminderId) {
-        calendarService.deleteReminder(reminderId);
+        reminderService.deleteReminder(reminderId);
     }
 }

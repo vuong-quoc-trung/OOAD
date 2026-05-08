@@ -5,7 +5,7 @@ import com.example.calendar.dto.AppointmentMutationResponse;
 import com.example.calendar.dto.AppointmentResponse;
 import com.example.calendar.dto.ConflictResolutionRequest;
 import com.example.calendar.dto.UserIdRequest;
-import com.example.calendar.service.CalendarService;
+import com.example.calendar.service.AppointmentService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,28 +21,28 @@ import java.util.List;
 
 /**
  * AppointmentController — điểm vào REST cho Calendar / Appointment.
- * Delegate toàn bộ sang CalendarService (lớp Calendar trong UML).
+ * Delegate toàn bộ sang AppointmentService.
  */
 @RestController
 @RequestMapping("/api/appointments")
 public class AppointmentController {
 
-    private final CalendarService calendarService;
+    private final AppointmentService appointmentService;
 
-    public AppointmentController(CalendarService calendarService) {
-        this.calendarService = calendarService;
+    public AppointmentController(AppointmentService appointmentService) {
+        this.appointmentService = appointmentService;
     }
 
     @GetMapping
     public List<AppointmentResponse> getAppointments(@RequestParam Long userId) {
-        return calendarService.getAppointments(userId);
+        return appointmentService.getAppointments(userId);
     }
 
     @PostMapping
     public ResponseEntity<AppointmentMutationResponse> createAppointment(
             @RequestBody AppointmentCreateRequest request
     ) {
-        AppointmentMutationResponse response = calendarService.createAppointment(request);
+        AppointmentMutationResponse response = appointmentService.createAppointment(request);
         return ResponseEntity.status(resolveStatus(response.code())).body(response);
     }
 
@@ -52,12 +52,12 @@ public class AppointmentController {
             @RequestBody(required = false) UserIdRequest request,
             @PathVariable Long appointmentId
     ) {
-        return calendarService.joinAppointment(resolveUserId(userId, request), appointmentId);
+        return appointmentService.joinAppointment(resolveUserId(userId, request), appointmentId);
     }
 
     @PostMapping("/conflict/resolve")
     public AppointmentMutationResponse resolveConflict(@RequestBody ConflictResolutionRequest request) {
-        return calendarService.resolveConflict(request);
+        return appointmentService.resolveConflict(request);
     }
 
     @DeleteMapping("/{appointmentId}")
@@ -66,7 +66,7 @@ public class AppointmentController {
             @RequestBody(required = false) UserIdRequest request,
             @PathVariable Long appointmentId
     ) {
-        return calendarService.deleteOrLeaveAppointment(resolveUserId(userId, request), appointmentId);
+        return appointmentService.deleteOrLeaveAppointment(resolveUserId(userId, request), appointmentId);
     }
 
     // ─── Private helpers ──────────────────────────────────────────────────────
